@@ -1,17 +1,44 @@
 import emailjs from '@emailjs/browser';
 
-// Configuración de EmailJS desde variables de entorno
+// Validación de variables de entorno
+const checkEnvVars = () => {
+  const missing = [];
+  if (!import.meta.env.VITE_EMAILJS_SERVICE_ID) missing.push('VITE_EMAILJS_SERVICE_ID');
+  if (!import.meta.env.VITE_EMAILJS_TEMPLATE_ID) missing.push('VITE_EMAILJS_TEMPLATE_ID');
+  if (!import.meta.env.VITE_EMAILJS_PUBLIC_KEY) missing.push('VITE_EMAILJS_PUBLIC_KEY');
+  
+  if (missing.length > 0) {
+    console.warn(`⚠️ Faltan variables de entorno: ${missing.join(', ')}.`);
+    console.warn('Detalles: Ve a https://dashboard.emailjs.com/ para obtener tus credenciales');
+    return false;
+  }
+  return true;
+};
+
 const EMAILJS_CONFIG = {
-  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
-  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
+  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || 'DEMO_SERVICE_ID',
+  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'DEMO_TEMPLATE_ID',
+  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'DEMO_PUBLIC_KEY'
 };
 
 /**
  * Inicializa EmailJS con la clave pública
+ * Incluye validación de variables de entorno y manejo de errores
  */
 export const initEmailJS = () => {
-  emailjs.init(EMAILJS_CONFIG.publicKey);
+  try {
+    const hasAllVars = checkEnvVars();
+    if (!hasAllVars) {
+      console.warn('⚠️ EmailJS no completamente configurado. Usando modo DEMO.');
+    }
+    emailjs.init(EMAILJS_CONFIG.publicKey);
+    console.log('✅ EmailJS inicializado correctamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error inicializando EmailJS:', error);
+    // No lanzar error, permitir que la app continúe
+    return false;
+  }
 };
 
 /**
@@ -36,18 +63,18 @@ export const sendDemoWelcomeEmail = async (userData) => {
       from_name: 'Agenda Plus - Automatiza Sur',
       reply_to: 'contacto@automatizasur.cl'
     };
-
+    
     const response = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
       templateParams
     );
-
+    
     console.log('✅ Email enviado exitosamente:', response);
     return { success: true, response };
   } catch (error) {
     console.error('❌ Error al enviar email:', error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 };
 
@@ -65,18 +92,18 @@ export const sendDemoReminderEmail = async (userData) => {
       upgrade_url: `${window.location.origin}#upgrade`,
       support_email: 'contacto@automatizasur.cl'
     };
-
+    
     const response = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       'template_reminder', // Template ID para recordatorios
       templateParams
     );
-
+    
     console.log('✅ Email de recordatorio enviado:', response);
     return { success: true, response };
   } catch (error) {
     console.error('❌ Error al enviar recordatorio:', error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 };
 
@@ -93,18 +120,18 @@ export const sendDemoExpiredEmail = async (userData) => {
       upgrade_url: `${window.location.origin}#upgrade`,
       support_email: 'contacto@automatizasur.cl'
     };
-
+    
     const response = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       'template_expired', // Template ID para expiración
       templateParams
     );
-
+    
     console.log('✅ Email de expiración enviado:', response);
     return { success: true, response };
   } catch (error) {
     console.error('❌ Error al enviar email de expiración:', error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 };
 
