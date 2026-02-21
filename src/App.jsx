@@ -8,6 +8,7 @@ import Footer from './components/Footer'
 import SaaSApp from './SaaSApp'
 import LoginModal from './components/LoginModal'
 import DemoRegistration from './components/DemoRegistration'
+import ErrorBoundary from './components/ErrorBoundary'
 import { initEmailJS } from './services/emailService'
 
 function App() {
@@ -15,10 +16,21 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [appError, setAppError] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Inicializar EmailJS al cargar la app
+  // Inicializar EmailJS al cargar la app con error handling
   useEffect(() => {
-    initEmailJS();
+    try {
+      initEmailJS();
+      setAppError(null);
+    } catch (error) {
+      console.error('Error inicializando EmailJS:', error);
+      // No bloquear la app si EmailJS falla
+      setAppError('Advertencia: Email no disponible por el momento');
+    } finally {
+      setIsInitializing(false);
+    }
   }, []);
 
   const handleAdminClick = () => {
@@ -28,74 +40,83 @@ function App() {
   const handleLoginSuccess = () => {
     setShowSaaS(true);
     setShowLoginModal(false);
-    setIsDemoMode(false); // Login normal, no es demo
+    setIsDemoMode(false);
   };
 
   const handleDemoSuccess = () => {
     setShowSaaS(true);
     setShowDemoModal(false);
-    setIsDemoMode(true); // Modo demo activado
+    setIsDemoMode(true);
   };
 
-  // Detectar clicks en enlaces #demo
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === '#demo') {
-        setShowDemoModal(true);
-        // Limpiar el hash
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    };
+  const handleDemoClick = () => {
+    setShowDemoModal(true);
+  };
 
-    window.addEventListener('hashchange', handleHashChange);
-    // Verificar al cargar
-    handleHashChange();
+  const handleLogout = () => {
+    setShowSaaS(false);
+    setIsDemoMode(false);
+  };
 
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // El modo SaaS se activa desde el enlace "Admin" en el Navbar o desde Demo
-  if (showSaaS) {
-    return <SaaSApp onLogout={() => setShowSaaS(false)} isDemoMode={isDemoMode} />;
+  // Mostrar pantalla de carga
+  if (isInitializing) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <h2>Cargando Agenda Plus...</h2>
+      </div>
+    );
   }
 
+  // Si estamos en modo SaaS, mostrar la app
+  if (showSaaS) {
+    return (
+      <ErrorBoundary>
+        <SaaSApp isDemoMode={isDemoMode} onLogout={handleLogout} />
+      </ErrorBoundary>
+    );
+  }
+
+  // Modo landing page
   return (
-    <div className="app">
-      {/* Navbar con acceso a Admin */}
-      <Navbar onAdminLogin={handleAdminClick} />
-
-      {/* Contenido Principal de la Landing SaaS */}
-      <Hero />
-      <Services />
-      <Pricing />
-      <Footer />
-
-      {/* Botones Sociales Flotantes */}
-      <WhatsAppButton />
-
-      {/* Modal de Login para Profesionales */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onLogin={handleLoginSuccess}
-      />
-
-      {/* Modal de Registro de Demo */}
-      {showDemoModal && (
+    <ErrorBoundary>
+      <div className="app">
+        {appError && (
+          <div style={{
+            backgroundColor: '#fff3cd',
+            color: '#856404',
+            padding: '12px',
+            marginBottom: '20px',
+            borderRadius: '4px',
+            textAlign: 'center'
+          }}>
+            ⚠️ {appError}
+          </div>
+        )}
+        <Navbar onAdminClick={handleAdminClick} />
+        <Hero onAdminClick={handleAdminClick} onDemoClick={handleDemoClick} />
+        <Services />
+        <Pricing />
+        <WhatsAppButton />
+        <Footer />
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
         <DemoRegistration
+          isOpen={showDemoModal}
           onClose={() => setShowDemoModal(false)}
           onSuccess={handleDemoSuccess}
         />
-      )}
-
-      <style>{`
-        .app {
-          background-color: var(--bg-color);
-          min-height: 100vh;
-        }
-      `}</style>
-    </div>
-  )
+      </div>
+    </ErrorBoundary>
+  );
 }
 
-export default App
+export default App;
